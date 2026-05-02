@@ -4,14 +4,14 @@
 > 기능 완료 시 [x]로 체크, 작업 중인 항목은 → 표시.
 
 ## Phase 1: 기반 설계
-- [ ] ERD 확정 (`docs/erd.md`)
+- [x] ERD 확정 (`docs/erd.md`)
 - [ ] API 명세 초안 (`docs/api-spec.md`)
-- [ ] 백엔드 프로젝트 초기 세팅 (Spring Initializr)
+- [x] 백엔드 프로젝트 초기 세팅 (Spring Initializr)
 - [ ] 프론트엔드 프로젝트 초기 세팅 (Vite)
-- [ ] DB 연결 및 Entity 생성
+- [ ] DB 연결 및 Entity 생성 (Entity 클래스 완료, DB 연결 설정 미완)
 
 ## Phase 2: 백엔드 핵심 기능
-- [ ] User 엔티티 + Google OAuth 로그인
+- [ ] User 엔티티 + Google OAuth 로그인 (User 엔티티 완료, OAuth 미완)
 - [ ] CategoryGroup + Category CRUD
 - [ ] Tag CRUD
 - [ ] Post CRUD (기본)
@@ -38,8 +38,8 @@
 ---
 
 ## 현재 작업 중
-(없음 — 아직 시작 전)
+- Entity 클래스 전체 완료 (User, CategoryGroup, Category, Post, Tag, PostTag, PostLike)
 
 ## 다음 우선순위
-1. ERD 설계
-2. 백엔드 프로젝트 세팅
+1. DB 연결 설정 (application.yml — PostgreSQL datasource, JPA ddl-auto)
+2. Google OAuth 로그인 구현
