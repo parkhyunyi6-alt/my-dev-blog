@@ -6,19 +6,36 @@
 ## Phase 1: 기반 설계
 - [x] ERD 확정 (`docs/erd.md`)
 - [ ] API 명세 초안 (`docs/api-spec.md`)
-- [x] 백엔드 프로젝트 초기 세팅 (Spring Initializr)
+- [x] 백엔드 프로젝트 초기 세팅 (Spring Boot 3.5.14 / Java 21)
 - [ ] 프론트엔드 프로젝트 초기 세팅 (Vite)
-- [ ] DB 연결 및 Entity 생성 (Entity 클래스 완료, DB 연결 설정 미완)
+- [x] DB 연결 설정 (PostgreSQL datasource, JPA ddl-auto: validate)
+- [x] Flyway 마이그레이션 설정 + `V1__init_schema.sql` 작성
+- [x] Entity 전체 생성 (User, CategoryGroup, Category, Post, Tag, PostTag, PostLike)
+- [x] Repository 전체 생성 (7개 — 위 Entity에 대응)
+- [x] build.gradle 의존성 추가 (Security, OAuth2, JPA, Flyway, JJWT, Validation, PostgreSQL)
 
 ## Phase 2: 백엔드 핵심 기능
-- [ ] User 엔티티 + Google OAuth 로그인 (User 엔티티 완료, OAuth 미완)
-- [ ] CategoryGroup + Category CRUD
-- [ ] Tag CRUD
-- [ ] Post CRUD (기본)
-- [ ] Post-Tag 연관 관계
-- [ ] Post 목록 조회 (카테고리 필터, 태그 필터)
+- → User 엔티티 + Google OAuth 로그인
+  - [x] User 엔티티 + UserRepository + UserService / UserServiceImpl
+  - [x] JwtTokenProvider (JWT 생성 / 검증 유틸)
+  - [ ] SecurityConfig (Spring Security 필터 체인)
+  - [ ] OAuth2UserService (Google 로그인 콜백 처리)
+  - [ ] JWT 인증 필터 (OncePerRequestFilter)
+  - [ ] AuthController (`/api/auth/me` 등)
+- → CategoryGroup + Category CRUD
+  - [x] CategoryService / CategoryServiceImpl (CRUD 로직 완료)
+  - [x] DTO 완료 (CategoryGroupCreateRequest/UpdateRequest, CategoryCreateRequest/UpdateRequest, CategoryGroupResponse, CategoryResponse)
+  - [ ] CategoryController
+- [ ] Tag CRUD (Service / Controller 미작성)
+- → Post CRUD
+  - [x] PostService / PostServiceImpl (기본 CRUD + 페이징 + 이웃 포스트 조회)
+  - [x] DTO 완료 (PostCreateRequest/UpdateRequest, PostDetailResponse, PostListItemResponse, PostSummaryResponse, PostNeighborsResponse, PagedPostResponse, AuthorResponse)
+  - [ ] PostController
+- [x] Post-Tag 연관 관계 (PostTag 엔티티 + 연관 처리 — PostServiceImpl 내 포함)
+- [x] Post 목록 조회 (카테고리 필터 + 페이징 — PostService 인터페이스 정의 완료)
 - [ ] 조회수 카운트
-- [ ] 좋아요 기능 (중복 방지)
+- [ ] 좋아요 기능 (PostLike 엔티티 + Repository 완료, Service / Controller 미작성)
+- [x] 커스텀 예외 (NotFoundException, ForbiddenException, ConflictException)
 
 ## Phase 3: 프론트엔드
 - [ ] 레이아웃 (Sidebar + Header + 중앙 콘텐츠)
@@ -38,8 +55,11 @@
 ---
 
 ## 현재 작업 중
-- Entity 클래스 전체 완료 (User, CategoryGroup, Category, Post, Tag, PostTag, PostLike)
+- 백엔드 Service 레이어 완료, Controller 레이어 미작성
 
 ## 다음 우선순위
-1. DB 연결 설정 (application.yml — PostgreSQL datasource, JPA ddl-auto)
-2. Google OAuth 로그인 구현
+1. SecurityConfig + OAuth2UserService + JWT 인증 필터 구현 (Google OAuth 로그인 완성)
+2. AuthController 작성 (`/api/auth/me`)
+3. CategoryController 작성
+4. PostController 작성
+5. TagService + TagController 작성
