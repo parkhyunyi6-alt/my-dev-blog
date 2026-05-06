@@ -19,8 +19,8 @@ public class UserServiceImpl implements UserService {
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
-    public String loginOrRegister(String googleId, String email, String name, String profileImageUrl) {
-        User user = userRepository.findByGoogleId(googleId)
+    public User findOrCreateUser(String googleId, String email, String name, String profileImageUrl) {
+        return userRepository.findByGoogleId(googleId)
                 .map(existing -> {
                     existing.updateProfile(name, profileImageUrl);
                     return existing;
@@ -28,7 +28,11 @@ public class UserServiceImpl implements UserService {
                 .orElseGet(() -> userRepository.save(
                         new User(googleId, email, name, profileImageUrl, User.Role.GUEST)
                 ));
+    }
 
+    @Override
+    public String loginOrRegister(String googleId, String email, String name, String profileImageUrl) {
+        User user = findOrCreateUser(googleId, email, name, profileImageUrl);
         return jwtTokenProvider.generateToken(user.getId(), user.getRole());
     }
 

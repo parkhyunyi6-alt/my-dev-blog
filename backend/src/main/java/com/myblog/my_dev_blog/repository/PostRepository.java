@@ -5,6 +5,7 @@ import com.myblog.my_dev_blog.entity.Post;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,6 +21,18 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findTopByOrderByCreatedAtDesc();
 
     boolean existsByCategory(Category category);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.viewCount = p.viewCount + 1 WHERE p.id = :id")
+    void incrementViewCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.heartCount = p.heartCount + 1 WHERE p.id = :id")
+    void incrementHeartCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.heartCount = p.heartCount - 1 WHERE p.id = :id AND p.heartCount > 0")
+    void decrementHeartCount(@Param("id") Long id);
 
     // 현재 포스트 기준 이후 N개 조회
     @Query("SELECT p FROM Post p WHERE p.id > :postId ORDER BY p.id ASC")

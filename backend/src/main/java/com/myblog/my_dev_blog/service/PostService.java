@@ -21,4 +21,12 @@ public interface PostService {
     PostDetailResponse updatePost(Long id, PostUpdateRequest request, Long userId);
 
     void deletePost(Long id, Long userId);
+
+    void incrementViewCount(Long postId);
+
+    void addLike(Long postId, Long userId, String deviceId);
+
+    void removeLike(Long postId, Long userId, String deviceId);
+
+    boolean isLiked(Long postId, Long userId, String deviceId);
 }

@@ -4,6 +4,7 @@ import com.myblog.my_dev_blog.dto.request.PostCreateRequest;
 import com.myblog.my_dev_blog.dto.request.PostUpdateRequest;
 import com.myblog.my_dev_blog.dto.response.*;
 import com.myblog.my_dev_blog.entity.*;
+import com.myblog.my_dev_blog.exception.ConflictException;
 import com.myblog.my_dev_blog.exception.ForbiddenException;
 import com.myblog.my_dev_blog.exception.NotFoundException;
 import com.myblog.my_dev_blog.repository.*;
@@ -17,8 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -97,8 +99,9 @@ public class PostServiceImpl implements PostService {
     public PostDetailResponse createPost(PostCreateRequest request, Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
-        Category category = findCategoryOrThrow(request.categoryId());
+        checkOwner(user, "포스트 작성 권한이 없습니다.");
 
+        Category category = findCategoryOrThrow(request.categoryId());
         Post post = postRepository.save(new Post(user, category, request.title(), request.content()));
         List<PostTag> postTags = saveTags(post, request.tags());
 
@@ -107,11 +110,11 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public PostDetailResponse updatePost(Long id, PostUpdateRequest request, Long userId) {
-        Post post = findPostOrThrow(id);
-        if (!post.getUser().getId().equals(userId)) {
-            throw new ForbiddenException("포스트를 수정할 권한이 없습니다.");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+        checkOwner(user, "포스트 수정 권한이 없습니다.");
 
+        Post post = findPostOrThrow(id);
         Category category = findCategoryOrThrow(request.categoryId());
         post.update(category, request.title(), request.content());
 
@@ -123,11 +126,11 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public void deletePost(Long id, Long userId) {
-        Post post = findPostOrThrow(id);
-        if (!post.getUser().getId().equals(userId)) {
-            throw new ForbiddenException("포스트를 삭제할 권한이 없습니다.");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+        checkOwner(user, "포스트 삭제 권한이 없습니다.");
 
+        Post post = findPostOrThrow(id);
         postTagRepository.deleteByPost(post);
         postLikeRepository.deleteByPost(post);
         postRepository.delete(post);
@@ -139,7 +142,7 @@ public class PostServiceImpl implements PostService {
         List<String> normalized = tagNames.stream()
                 .map(String::trim)
                 .filter(name -> !name.isBlank())
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new))
+                .collect(Collectors.toCollection(LinkedHashSet::new))
                 .stream().toList();
 
         if (normalized.size() > 10) {
@@ -151,6 +154,87 @@ public class PostServiceImpl implements PostService {
                         .orElseGet(() -> tagRepository.save(new Tag(name))))
                 .map(tag -> postTagRepository.save(new PostTag(post, tag)))
                 .toList();
+    }
+
+    @Override
+    public void incrementViewCount(Long postId) {
+        findPostOrThrow(postId);
+        postRepository.incrementViewCount(postId);
+    }
+
+    @Override
+    public void addLike(Long postId, Long userId, String deviceId) {
+        Post post = findPostOrThrow(postId);
+
+        if (userId != null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+            if (postLikeRepository.existsByPostAndUser(post, user)) {
+                throw new ConflictException("이미 좋아요를 누른 포스트입니다.");
+            }
+            // 비로그인 상태로 누른 동일 기기 row와 unique 제약 충돌 방지
+            if (deviceId != null && !deviceId.isBlank()
+                    && postLikeRepository.existsByPostAndDeviceId(post, deviceId)) {
+                throw new ConflictException("이미 좋아요를 누른 포스트입니다.");
+            }
+            postLikeRepository.save(new PostLike(post, user, deviceId));
+        } else {
+            if (deviceId == null || deviceId.isBlank()) {
+                throw new IllegalArgumentException("deviceId는 필수입니다.");
+            }
+            if (postLikeRepository.existsByPostAndDeviceId(post, deviceId)) {
+                throw new ConflictException("이미 좋아요를 누른 포스트입니다.");
+            }
+            postLikeRepository.save(new PostLike(post, deviceId));
+        }
+
+        postRepository.incrementHeartCount(postId);
+    }
+
+    @Override
+    public void removeLike(Long postId, Long userId, String deviceId) {
+        Post post = findPostOrThrow(postId);
+
+        PostLike postLike;
+        if (userId != null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+            postLike = postLikeRepository.findByPostAndUser(post, user)
+                    .orElseThrow(() -> new NotFoundException("좋아요 내역을 찾을 수 없습니다."));
+        } else {
+            if (deviceId == null || deviceId.isBlank()) {
+                throw new IllegalArgumentException("deviceId는 필수입니다.");
+            }
+            postLike = postLikeRepository.findByPostAndDeviceId(post, deviceId)
+                    .orElseThrow(() -> new NotFoundException("좋아요 내역을 찾을 수 없습니다."));
+        }
+
+        postLikeRepository.delete(postLike);
+        postRepository.decrementHeartCount(postId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isLiked(Long postId, Long userId, String deviceId) {
+        Post post = findPostOrThrow(postId);
+
+        if (userId != null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+            return postLikeRepository.existsByPostAndUser(post, user);
+        }
+
+        if (deviceId != null && !deviceId.isBlank()) {
+            return postLikeRepository.existsByPostAndDeviceId(post, deviceId);
+        }
+
+        return false;
+    }
+
+    private void checkOwner(User user, String message) {
+        if (user.getRole() != User.Role.OWNER) {
+            throw new ForbiddenException(message);
+        }
     }
 
     private Post findPostOrThrow(Long id) {
